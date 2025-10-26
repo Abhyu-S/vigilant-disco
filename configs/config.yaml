@@ -1,0 +1,44 @@
+# @package _global_
+
+# Model configuration
+model:
+  model_name: "google/vit-large-patch16-224"
+  num_classes: 100
+  nbits_w: 4
+  nbits_a: 4
+
+# Training configuration
+training:
+  learning_rate: 3.0e-4
+  weight_decay: 0.0
+  warmup_epochs: 10
+  max_epochs: 300
+  batch_size: 128
+  optimizer: "adamw"
+
+# Data configuration
+data:
+  data_dir: "./data"
+  num_workers: 4
+  image_size: 224
+
+# Logger configuration
+logger:
+  name: "quantized_vit_l"
+  project: "qvit-lightning"
+  log_model: true
+
+# Trainer configuration
+trainer:
+  accelerator: "gpu"
+  devices: 1
+  max_epochs: ${training.max_epochs}
+  precision: "16-mixed"
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  
+# Callbacks
+callbacks:
+  enable_progress_bar: true
+  enable_model_summary: true
+

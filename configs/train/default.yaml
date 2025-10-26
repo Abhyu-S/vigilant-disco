@@ -1,0 +1,16 @@
+defaults:
+  - _self_
+  - hydra:
+      run:
+        dir: ./outputs/${now:%Y-%m-%d_%H-%M-%S}
+
+hydra:
+  sweep:
+    dir: ./multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.num}
+
+# Training specific overrides can go here
+# E.g., to run with different batch sizes:
+# training:
+#   batch_size: 256
+
