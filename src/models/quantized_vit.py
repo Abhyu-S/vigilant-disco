@@ -44,20 +44,10 @@ class QuantizedVisionTransformer(nn.Module):
         
     def _quantize_model(self):
         """Replace layers with quantized versions"""
-        # Quantize embedding projection
-        if hasattr(self.vit.vit.embeddings, 'patch_embeddings'):
-            orig_patch = self.vit.vit.embeddings.patch_embeddings
-            self.vit.vit.embeddings.patch_embeddings = Conv2dQ(
-                in_channels=orig_patch.in_channels,
-                out_channels=orig_patch.out_channels,
-                kernel_size=orig_patch.kernel_size,
-                stride=orig_patch.stride,
-                padding=orig_patch.padding,
-                nbits_w=self.nbits_w
-            )
-            self.vit.vit.embeddings.patch_embeddings.weight = orig_patch.weight
-            if hasattr(orig_patch, 'bias') and orig_patch.bias is not None:
-                self.vit.vit.embeddings.patch_embeddings.bias = orig_patch.bias
+        # Skip quantization of patch embeddings for now
+        # The ViT patch embeddings structure from HuggingFace is different
+        # and doesn't easily map to a simple Conv2d layer
+        pass
         
         # Quantize attention and MLP layers in each transformer block
         for block in self.vit.vit.encoder.layer:
