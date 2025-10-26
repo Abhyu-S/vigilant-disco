@@ -35,7 +35,7 @@ ENV/
 *~
 
 # Data
-data/
+/data/
 *.pth
 *.pt
 *.ckpt

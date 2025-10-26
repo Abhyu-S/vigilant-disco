@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torch.nn.modules.linear import Linear
 import math
 from torch.nn.parameter import Parameter
-from _quan_base import _Conv2dQ, Qmodes, _LinearQ, _ActQ
+from ._quan_base import _Conv2dQ, Qmodes, _LinearQ, _ActQ
 
 
 __all__ = ['Conv2dQ', 'LinearQ', 'ActQ']
@@ -70,15 +70,15 @@ class Conv2dQ(_Conv2dQ):
             self.alpha.data.copy_(2 * self.weight.abs().mean() / math.sqrt(Qp))
             # self.alpha.data.copy_(self.weight.abs().max() * 2)
             self.init_state.fill_(1)
-        """  
+        """
         Implementation according to paper. 
         Feels wrong ...
         When we initialize the alpha as a big number (e.g., self.weight.abs().max() * 2), 
         the clamp function can be skipped.
-        Then we get w_q = w / alpha * alpha = w, and $\frac{\partial w_q}{\partial \alpha} = 0$
+        Then we get w_q = w / alpha * alpha = w, and the partial derivative is zero.
         As a result, I don't think the pseudo-code in the paper echoes the formula.
        
-        Please see jupyter/STE_LSQ.ipynb fo detailed comparison.
+        Please see jupyter/STE_LSQ.ipynb for detailed comparison.
         """
         g = 1.0 / math.sqrt(self.weight.numel() * Qp)
 
