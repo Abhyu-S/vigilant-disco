@@ -7,7 +7,7 @@ import torch.nn as nn
 import math
 from typing import Optional, Tuple
 from transformers import ViTForImageClassification
-from ..Quant import LinearQ, Conv2dQ, ActQ
+from src.Quant import LinearQ, Conv2dQ, ActQ
 
 
 class QuantizedVisionTransformer(nn.Module):
