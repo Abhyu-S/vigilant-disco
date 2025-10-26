@@ -33,11 +33,21 @@ class QuantizedVisionTransformer(nn.Module):
         # Load pretrained ViT from HuggingFace
         self.vit = ViTForImageClassification.from_pretrained(model_name)
         
-        # Get the base ViT model
+        # Get the base ViT model and config
         vit_model = self.vit.vit
         
         # Replace classifier head for CIFAR-100
-        self.vit.classifier = nn.Linear(vit_model.config.hidden_size, num_classes)
+        # Store the embedding dimension
+        self.embed_dim = vit_model.config.hidden_size
+        self.num_classes = num_classes
+        
+        # Replace classifier with 100 classes
+        self.vit.classifier = nn.Linear(self.embed_dim, num_classes)
+        
+        # Update the config
+        self.vit.config.num_labels = num_classes
+        self.vit.config.id2label = {i: f"LABEL_{i}" for i in range(num_classes)}
+        self.vit.config.label2id = {f"LABEL_{i}": i for i in range(num_classes)}
         
         # Quantize layers
         self._quantize_model()
@@ -134,17 +144,18 @@ class QuantizedVisionTransformer(nn.Module):
                     new_output.bias = orig_output.bias
                 block.output.dense = new_output
         
-        # Quantize final classifier
-        orig_classifier = self.vit.classifier
-        self.vit.classifier = LinearQ(
-            in_features=orig_classifier.in_features,
-            out_features=orig_classifier.out_features,
-            bias=orig_classifier.bias is not None,
-            nbits_w=self.nbits_w
-        )
-        self.vit.classifier.weight = orig_classifier.weight
-        if orig_classifier.bias is not None:
-            self.vit.classifier.bias = orig_classifier.bias
+        # Quantize final classifier (already replaced for CIFAR-100)
+        if isinstance(self.vit.classifier, nn.Linear):
+            orig_classifier = self.vit.classifier
+            self.vit.classifier = LinearQ(
+                in_features=orig_classifier.in_features,
+                out_features=orig_classifier.out_features,
+                bias=orig_classifier.bias is not None,
+                nbits_w=self.nbits_w
+            )
+            self.vit.classifier.weight = orig_classifier.weight
+            if orig_classifier.bias is not None:
+                self.vit.classifier.bias = orig_classifier.bias
     
     def forward(self, pixel_values, labels=None):
         """
@@ -153,7 +164,27 @@ class QuantizedVisionTransformer(nn.Module):
             pixel_values: Input images tensor of shape (batch, channels, height, width)
             labels: Optional ground truth labels
         """
-        outputs = self.vit(pixel_values=pixel_values, labels=labels)
+        # Get base model output
+        embedding_output = self.vit.vit.embeddings(pixel_values)
+        encoder_outputs = self.vit.vit.encoder(embedding_output)
+        sequence_output = encoder_outputs.last_hidden_state
+        
+        # Get pooled output (CLS token)
+        pooled_output = self.vit.vit.layernorm(sequence_output[:, 0])
+        
+        # Get logits from quantized classifier
+        logits = self.vit.classifier(pooled_output)
+        
+        # Compute loss if labels provided
+        loss = None
+        if labels is not None:
+            loss = nn.functional.cross_entropy(logits, labels)
+        
+        # Return simple output with logits and loss
+        from types import SimpleNamespace
+        outputs = SimpleNamespace()
+        outputs.logits = logits
+        outputs.loss = loss
         return outputs
     
     def get_config(self):

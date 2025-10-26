@@ -60,16 +60,19 @@ class LitQuantizedViT(pl.LightningModule):
         
     def forward(self, pixel_values, labels=None):
         """Forward pass"""
-        return self.model(pixel_values=pixel_values, labels=labels)
+        outputs = self.model(pixel_values=pixel_values, labels=labels)
+        return outputs
     
     def training_step(self, batch, batch_idx):
         """Training step"""
         images, labels = batch
         outputs = self.model(pixel_values=images, labels=labels)
-        loss = outputs.loss
         
-        # Logits
-        logits = outputs.logits
+        # Get logits from the model output
+        logits = outputs.logits if hasattr(outputs, 'logits') else outputs
+        
+        # Compute loss manually to ensure correct shape
+        loss = self.criterion(logits, labels)
         
         # Compute metrics
         acc = self.train_acc(logits, labels)
@@ -86,10 +89,12 @@ class LitQuantizedViT(pl.LightningModule):
         """Validation step"""
         images, labels = batch
         outputs = self.model(pixel_values=images, labels=labels)
-        loss = outputs.loss
         
-        # Logits
-        logits = outputs.logits
+        # Get logits from the model output
+        logits = outputs.logits if hasattr(outputs, 'logits') else outputs
+        
+        # Compute loss manually to ensure correct shape
+        loss = self.criterion(logits, labels)
         
         # Compute metrics
         acc = self.val_acc(logits, labels)
